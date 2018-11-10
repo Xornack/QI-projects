@@ -34,6 +34,9 @@ directly capturing. There's a myriad of factors that affect time to open a repor
 and start editing it, so that was one major limitation. There are some simple
 but very useful functions here though.
 
+Other result: I found no difference between tech time before and 
+after intervention, which was valuable information to us.
+
 Another idea: these are time series data and fit a Poisson distribution, but
 there's not a built in difference test for Poisson distributions that I could
 find (E-score), so I'd have to build one. Project for another time...
