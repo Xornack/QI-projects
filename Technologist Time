@@ -1,0 +1,109 @@
+"""
+Created on Mon Oct 22 20:46:26 2018
+We changed the ultrasound template to allow the technologists to input data
+into the template. Our job becomes looking at the images and clicking through 
+the exam if we agree.
+
+Is there a difference in the 6 months before implementation and the 6 months
+after? We gave 6 months for a learning curve.
+
+Technologist time is time from opening the study to completing it for radiologist
+review.
+
+mPower allowed for a exam metadata download, and the dates of interest are separated 
+out with a simple function.
+@author: Matthew Harwood, MD
+"""
+import pandas
+import numpy as np
+import matplotlib.pyplot as plt # use this in the console to check out the data
+from scipy.stats import ttest_ind, mannwhitneyu
+
+# Read in and get the columns we want. The variable names say it all.
+# Note: the dtype has to be in an int or a float to do math, default is string
+# when you read in the way I did.
+
+data = pandas.read_csv("E:/SQL_DATABASES/tech_time.csv")
+column_names = list(data.columns)
+exam_started = data["Exam Started Date"].astype('datetime64[ns]')
+exam_completed = data['Exam Completed Date'].astype('datetime64[ns]')
+technologist_time = exam_completed - exam_started
+technologist_time = technologist_time.astype('timedelta64[m]')
+
+'''
+Just of interest:
+Another example of how to convert np.timedelta64 to floats:
+x = exam_completed_dates[1] - exam_completed_dates[0]
+x.astype('timedelta64[m]') / np.timedelta64(1, 'm')
+https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.datetime.html
+'''
+# Return an array that subsets the array by time.
+# The time has to be in the np.datetime64 format e.g. '2017-11-01T00:00'.
+def subset_by_time(datetime_array,
+                   subset_array,
+                   lower = False, 
+                   higher = False):
+    if lower == False and higher == False:
+        print("There aren't any ranges given.")
+    
+    if higher != False:
+        indices = np.where(datetime_array < np.datetime64(higher))[0]
+        
+    if lower != False:
+        indices = np.where(datetime_array > np.datetime64(lower))[0]
+        
+    if lower != False and higher != False:
+        indices1 = np.where(datetime_array < np.datetime64(higher))[0]
+        indices2 = np.where(datetime_array > np.datetime64(lower))[0]
+        indices = np.array(list(set(indices1).intersection(indices2)))
+        
+    return np.array([subset_array[i] for i in indices])
+    
+
+# Find the median and IQR of an array.
+def med_IQR(l):
+    if type(l) == list:
+        l = np.array(l)
+    median = np.median(l)
+    q1, q3 = np.percentile(l, [25, 75])
+    IQR = q3 - q1
+    return [median, q1, q3, IQR]
+
+# Find the mean and standard deviation of a list. Just useful if I want it.
+# These data are heavily skewed, so mean is a bad measure of middle.
+def mean_std(l):
+    if type(l) == list:
+        l = np.array(l)
+    mean = np.mean(l)
+    std_dev = np.std(l)    
+    return [mean, std_dev]
+
+# Time values of interest. The intervention was started in 10/2017.
+# I only got patients from 6 months before that through 10/1/2018.
+time1 = '2017-10-01T00:00'
+time2 = '2018-04-01T00:00'
+
+# Find exam technologist time sorted by exam completed date before time1 and 
+# after time2.
+techtime_before = subset_by_time(exam_completed,
+                                 technologist_time,
+                                 lower = False,
+                                 higher = time1)
+
+techtime_after = subset_by_time(exam_completed,
+                                technologist_time,
+                                lower = time2,
+                                higher = False)
+
+medIQR_before = med_IQR(techtime_before)
+medIQR_after = med_IQR(techtime_after)
+print(medIQR_before)
+print(medIQR_after)
+
+fig, ax = plt.subplots()
+ax.boxplot([techtime_before, techtime_after], 0, '')
+ax.set_ylabel('Technologist Time (minutes)')
+ax.set_xticklabels(['Before Intervention', 'After Intervention'])
+plt.show()
+
+t, p = ttest_ind(techtime_before, techtime_after, equal_var = False)
