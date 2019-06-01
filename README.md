@@ -1,2 +1,2 @@
-# QI-projects
-Code for QI projects (or attempted QI projects)
+# Research-Projects
+Code for research projects (or attempted research projects)
