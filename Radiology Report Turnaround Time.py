@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Oct 22 20:46:26 2018
-Basic descriptive statistics and difference testing for US QI project.
-We changed the ultrasound template to allow the technologists to input data
-into the template. Our job becomes looking at the images and clicking through 
-the exam if we agree.
-
-Is there a difference in the 6 months before implementation and the 6 months
-after? We gave 6 months for a learning curve.
-
 Measure: time from exam completed to when the resident signs the report and 
 time from exam completed to when attending signs the report. The time it
 actually takes to make a report is not easily available. Ultimately I searched
@@ -28,18 +20,6 @@ FROM US_QI
 WHERE time("Exam Completed Date") BETWEEN time("12:00") AND time("13:00")
 AND cast(strftime('%w', "Exam Completed Date") as integer) BETWEEN 1 AND 5;    
 
-The results: no measurable difference before and after intervention. I think
-the main difficulty is in actual time to create a report, which we aren't
-directly capturing. There's a myriad of factors that affect time to open a report
-and start editing it, so that was one major limitation. There are some simple
-but very useful functions here though.
-
-Other result: I found no difference between tech time before and 
-after intervention, which was valuable information to us.
-
-Another idea: these are time series data and fit a Poisson distribution, but
-there's not a built in difference test for Poisson distributions that I could
-find (E-score), so I'd have to build one. Project for another time...
 @author: gamem
 """
 import csv
