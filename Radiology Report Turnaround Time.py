@@ -20,41 +20,20 @@ FROM US_QI
 WHERE time("Exam Completed Date") BETWEEN time("12:00") AND time("13:00")
 AND cast(strftime('%w', "Exam Completed Date") as integer) BETWEEN 1 AND 5;    
 
-@author: gamem
+Didn't end up needing SQL for these simpler queries.
+
+@author: Matthew Harwood, MD
 """
-import csv
+import pandas
 import numpy as np
 import matplotlib.pyplot as plt # use this in the console to check out the data
-#from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind
 
-# Read in csv. Saved a .csv in Excel from the SQLite query.
-def read_in_csv(path):
-    data = []
-    with open(path) as csvfile:
-        csv_file = csv.reader(csvfile, dialect='excel')
-        for row in csv_file:
-            data.append(row)
-    return np.array(data)
+# Read in data.
+data = pandas.read_csv('E:/SQL_DATABASES/US_limited_and_complete.csv')
+exam_date = data['Exam Completed Date'].astype('datetime64[ns]')
+turnaround_time = data['Exam Completed to Report Finalized (minutes)']
 
-# Read in and get the columns we want. The variable names say it all.
-# Note: the dtype has to be in an int or a float to do math, default is string
-# when you read in the way I did.
-data = read_in_csv('E:/SQL_DATABASES/Lunch_Coverage_US.csv')
-data = np.matrix.transpose(data)
-exam_completed_dates = [np.datetime64(i) for i in data[0][1:]]
-time_to_prelim = data[1][1:].astype(dtype = np.int16)
-time_to_finalize = data[2][1:].astype(dtype = np.int16)
-
-#plt.hist(time_to_prelim, bins = 100)
-#plt.hist(time_to_finalize, bins = 100)
-
-'''
-Just of interest:
-Example of how to convert np.timedelta64 to floats:
-x = exam_completed_dates[1] - exam_completed_dates[0]
-x.astype('timedelta64[m]') / np.timedelta64(1, 'm')
-https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.datetime.html
-'''
 # Return an array that subsets the array by time.
 # The time has to be in the np.datetime64 format e.g. '2017-11-01T00:00'.
 def subset_by_time(datetime_array,
@@ -77,7 +56,6 @@ def subset_by_time(datetime_array,
         
     return np.array([subset_array[i] for i in indices])
     
-
 # Find the median and IQR of an array.
 def med_IQR(l):
     if type(l) == list:
@@ -87,69 +65,30 @@ def med_IQR(l):
     IQR = q3 - q1
     return [median, q1, q3, IQR]
 
-# Find the mean and standard deviation of a list. Just useful if I want it.
-# These data are heavily skewed, so mean is a bad measure of middle.
-def mean_std(l):
-    if type(l) == list:
-        l = np.array(l)
-    mean = np.mean(l)
-    std_dev = np.std(l)    
-    return [mean, std_dev]
-
-# Time values of interest. The intervention was started in 10/2017.
-# I only got patients from 6 months before that through 10/1/2018.
+# Time values of interest.
 time1 = '2017-10-01T00:00'
 time2 = '2018-04-01T00:00'
 
-# Get the first six months resident read and attending read.
-# "First six months time to prelim/final read"
-# the 'f' and 'l' at the start of the variable names
-# 'f' means 'first' a la 'first six months'.
-# and 'l' means 'last' a la "last six months'.
-f_tt_prelim_read = subset_by_time(exam_completed_dates,
-                                    time_to_prelim,
-                                    lower = False,
-                                    higher = time1)
-
-f_tt_final_read = subset_by_time(exam_completed_dates,
-                                   time_to_finalize,
+# Find the time of the before and after interventions time.
+turnaround_before = subset_by_time(exam_date,
+                                   turnaround_time,
                                    lower = False,
                                    higher = time1)
 
-l_tt_prelim_read = subset_by_time(exam_completed_dates,
-                                    time_to_prelim,
-                                    lower = time2,
-                                    higher = False)
+turnaround_after = subset_by_time(exam_date,
+                                  turnaround_time,
+                                  lower = time2,
+                                  higher = False)
 
-l_tt_final_read = subset_by_time(exam_completed_dates,
-                                   time_to_finalize,
-                                   lower = time2,
-                                   higher = False)
+medIQR_before = med_IQR(turnaround_before)
+medIQR_after = med_IQR(turnaround_after)
+print(medIQR_before)
+print(medIQR_after)
 
-f_prelim_stats = med_IQR(f_tt_prelim_read)
-f_final_stats = med_IQR(f_tt_final_read)
-l_prelim_stats = med_IQR(l_tt_prelim_read)
-l_final_stats = med_IQR(l_tt_final_read)
+fig, ax = plt.subplots()
+ax.boxplot([turnaround_before, turnaround_after], 0, '')
+ax.set_ylabel('Turnaround Time (minutes)')
+ax.set_xticklabels(['Before Intervention', 'After Intervention'])
+plt.show()
 
-# Show median stats.
-print("Resident read stats:")
-print("Baseline ", f_prelim_stats)
-print("Last 6 months ", l_prelim_stats)
-print("")
-print("Final read stats:")
-print("Baseline ", f_final_stats)
-print("Last 6 months ", l_final_stats)
-print('')
-
-#ttest_ind(f_tt_prelim_read, l_tt_prelim_read)
-#ttest_ind(f_tt_final_read, l_tt_final_read)
-
-
-
-
-
-
-
-
-
-
+t, p = ttest_ind(turnaround_before, turnaround_after, equal_var = False)
